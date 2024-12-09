@@ -4,7 +4,8 @@ const bodyParser = require('body-parser');
 const path = require("path");
 const cors = require('cors');
 
-const dotenv    = require('dotenv');
+const dotenv = require('dotenv');
+
 dotenv.config({path:path.join(__dirname,'config.env')});
 
 const app = express();
@@ -16,30 +17,48 @@ mongoose.connect(process.env.DB)
   console.log("db success");
 })
 
-const  regMemberSchema = new mongoose.Schema({
+const regMemberSchema = new mongoose.Schema({
   membership_id : {type: String},
   name : {type:String},
   mobile_num : {type: String},
   nic : {type:String},
   dob : {type:String},
   gender : {type:String},
-  outlet_code : {type:String},
   outlet_name : {type:String},
+  outlet_code : {type:String},
   address : {type:String},
   city : {type:String},
   ref_num : {type:String},
   email_id : {type:String},
-  bank_acc : {type:String},
   name_of_bank : {type:String},
   branch : {type:String},
+  bank_acc : {type:String},
   date: {type:Date, default:Date.now}
-  });
+});
 const regMemberModel = mongoose.model('regMemberDetail', regMemberSchema);
+
+
+const OutletSchema = new mongoose.Schema({
+  names: Array,
+});
+const Outlet = mongoose.model('Outlet', OutletSchema);
+
+
+const BranchSchema = new mongoose.Schema({
+  names: Array,
+});
+const Branch = mongoose.model('Branch', BranchSchema);
+
+
+const BankSchema = new mongoose.Schema({
+  names: Array,
+});
+const Bank = mongoose.model('bank', BankSchema);
 
 
 const  setPaymentRateSchema = new mongoose.Schema({
   rate : {type:String},
-  });
+});
 const setPaymentRateModel = mongoose.model('paymentRate', setPaymentRateSchema);
 
 
@@ -60,7 +79,7 @@ const paymentDetailsSchema = new mongoose.Schema({
   rate : {type:String},
   paid_amount : {type: String},
   date: {type:Date, default:Date.now}
-  });
+});
 const paymentDetailsModel = mongoose.model('paymentDetail', paymentDetailsSchema);
 
 
@@ -75,11 +94,12 @@ const  paymentNotifySchema = new mongoose.Schema({
   }],
   due_amount : {type:String},
   date: {type:Date, default:Date.now}
-  });
+});
 const paymentNotifyModel = mongoose.model('paymentNotify', paymentNotifySchema);
 
 
 //Api build pandrom
+
 
 app.post('/reg_member', async (req, res) => {
   
@@ -91,23 +111,23 @@ app.post('/reg_member', async (req, res) => {
       nic : req.body.nic,
       dob : req.body.dob,
       gender : req.body.gender,
-      outlet_code : req.body.outlet_code,
       outlet_name : req.body.outlet_name,
+      outlet_code : req.body.outlet_code,
       address : req.body.address,
       city : req.body.city,
       ref_num : req.body.ref_num,
       email_id : req.body.email_id,
-      bank_acc : req.body.bank_acc,
       name_of_bank : req.body.name_of_bank,
       branch : req.body.branch, 
+      bank_acc : req.body.bank_acc,
     });
 
     member.save();
     res.status(200).send(member);
 
   } catch (error) {
-    console.error('Error saving QR data:', error);
-    res.status(500).send({ error: 'Server error while saving QR data.' });
+    console.error('Error saving Member data:', error);
+    res.status(500).send({ error: 'Server error while saving Members data.' });
   }
 });
 
@@ -115,8 +135,38 @@ app.post('/reg_member', async (req, res) => {
 app.get('/get-members', async(req, res) => {
   let memberDetails = await regMemberModel.find({});
   console.log(memberDetails.length);
-  
   memberDetails.length !== 0 ? res.status(200).send(memberDetails): res.status(201).send(null);
+});
+
+
+app.get('/get-outlets', async (req, res) => {
+  try {
+    const outlets = await Outlet.find();
+    res.json(outlets);
+  } catch (error) {
+    // res.status(500).json({ error: 'Failed to fetch outlets' });
+    res.status(500).send(Outlet);
+  }
+});
+
+
+app.get('/get-branches', async (req, res) => {
+  try {
+    const branch = await Branch.find();
+    res.json(branch);
+  } catch (error) {
+    res.status(500).send(Branch);
+  }
+});
+
+
+app.get('/get-banks', async (req, res) => {
+  try {
+    const bank = await Bank.find();
+    res.json(bank);
+  } catch (error) {
+    res.status(500).send(Bank);
+  }
 });
 
 
@@ -224,7 +274,7 @@ app.post('/set-payment-details', async (req, res) => {
 
 
 app.get('/get-payment-details', async(req, res) => {
-  let paymentDetails = await paymentDetailsModel.find({});  
+  let paymentDetails = await paymentDetailsModel.find({});
   paymentDetails.length !== 0 ? res.status(200).send(paymentDetails): res.status(201).send(paymentDetails);
 });
 
@@ -260,8 +310,9 @@ app.post('/set-payment-notify', async (req, res) => {
   try {
 
     const {membership_id} = req.body;
-
     const getPaymentNotify = await paymentNotifyModel.find({membership_id : membership_id});
+
+    
 
     if (getPaymentNotify.length == 0) {
       
@@ -279,9 +330,7 @@ app.post('/set-payment-notify', async (req, res) => {
     } 
     else {
 
-      const getPaymentNotify = await paymentNotifyModel.find({membership_id : membership_id});
-
-      
+      const getPaymentNotify = await paymentNotifyModel.find({membership_id : membership_id});      
       let getPaidAmount = getPaymentNotify[0].payments;
 
       if (getPaidAmount.length > 0) {
@@ -289,8 +338,7 @@ app.post('/set-payment-notify', async (req, res) => {
         console.log(`Last Paid Amount: ${lastPaidAmount}`);
       } else {
         console.log('No payments found.');
-      }
-            
+      }    
 
       await paymentNotifyModel.updateOne(
         {membership_id:membership_id},
@@ -317,9 +365,7 @@ app.get('/get-payment-notify/:id', async (req, res) => {
 
   try {
     let paymentNotifyDetail = await paymentDetailsModel.find({membership_id : id})
-
     let data = paymentNotifyDetail;
-
     let element = [{}];
 
     for (let index = 0; index < data.length; index++) {
@@ -345,7 +391,7 @@ app.get('/get-reg-member-detail', async (req, res) => {
     let getRegMemberDetails = await regMemberModel.find({})  
     res.status(200).send({getRegMemberDetails})
   } catch (error) {
-    console.log("Error"); 
+    console.log("Error");
   }
 });
 
@@ -355,10 +401,8 @@ app.get('/get-payment-notify-detail/:id', async (req, res) => {
 
   try {
     let temp1 = await paymentNotifyModel.find({membership_id : id}) 
-
     const getPaymentDetails = temp1[temp1.length-1]
-    
-        res.status(200).send({getPaymentDetails})
+    res.status(200).send({getPaymentDetails})
   } catch (error) {
     console.log("Error"); 
   }
@@ -396,6 +440,24 @@ app.delete('/delete-payment-detail/:id', async (req, res) => {
 });
 
 
+app.get('/get-membership-ids', async (req, res) => {
+  try {
+    const members = await regMemberModel.find({}, 'membership_id');
+    
+    res.status(200).json({
+      data: members.map(member => member.membership_id),
+    });
+  } catch (error) {
+    console.error('Error fetching membership_ids:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+app.get('/get-msg', (req, res) => {
+    res.send("Hiiii!");
+});
+
+
 app.listen(process.env.PORT, () => {
-  console.log(`Server is running on port ${process.env.PORT}` );
+  console.log(`Server is running on port ${process.env.PORT}`);
 });
